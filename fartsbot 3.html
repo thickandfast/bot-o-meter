@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fartsbot-kalkulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --panel: #111111;
+    --border: #222;
+    --red: #e63030;
+    --orange: #f07030;
+    --yellow: #f0c040;
+    --green: #28a060;
+    --text: #f0f0f0;
+    --muted: #666;
+    --accent: #e63030;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  header {
+    width: 100%;
+    background: #000;
+    border-bottom: 2px solid var(--red);
+    padding: 18px 24px 14px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2rem, 8vw, 3rem);
+    letter-spacing: 0.06em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  header p {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  .status-dot.error { background: var(--red); }
+  .status-dot.searching { background: var(--yellow); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Big speed display */
+  .speed-block {
+    background: #000;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .speed-block::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(230,48,48,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .speed-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .speed-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(5rem, 25vw, 8rem);
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.4s;
+  }
+
+  .speed-unit {
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin-top: -6px;
+  }
+
+  /* Speed limit row */
+  .limit-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .limit-box {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .limit-box .lbl {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .limit-box .val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .limit-box .unit {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .over-box {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+    transition: border-color 0.3s, background 0.3s;
+  }
+
+  .over-box.warn {
+    border-color: var(--orange);
+    background: rgba(240,112,48,0.08);
+  }
+
+  .over-box.danger {
+    border-color: var(--red);
+    background: rgba(230,48,48,0.1);
+    animation: flashBorder 1.5s infinite;
+  }
+
+  @keyframes flashBorder {
+    0%, 100% { border-color: var(--red); }
+    50% { border-color: rgba(230,48,48,0.3); }
+  }
+
+  /* Bot display */
+  .bot-panel {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.4s;
+  }
+
+  .bot-panel.no-fine {
+    border-color: var(--green);
+  }
+
+  .bot-panel.fine-low {
+    border-color: var(--yellow);
+  }
+
+  .bot-panel.fine-high {
+    border-color: var(--orange);
+  }
+
+  .bot-panel.fine-severe {
+    border-color: var(--red);
+    background: rgba(230,48,48,0.06);
+  }
+
+  .bot-header {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .bot-amount {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.8rem, 14vw, 4.5rem);
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.4s;
+  }
+
+  .bot-amount.no-fine { color: var(--green); }
+  .bot-amount.fine-low { color: var(--yellow); }
+  .bot-amount.fine-high { color: var(--orange); }
+  .bot-amount.fine-severe { color: var(--red); }
+
+  .bot-desc {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .bot-desc strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Tags */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .tag {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .tag.prikker { background: rgba(240,192,64,0.15); color: var(--yellow); border: 1px solid rgba(240,192,64,0.3); }
+  .tag.lappen { background: rgba(230,48,48,0.15); color: var(--red); border: 1px solid rgba(230,48,48,0.3); }
+  .tag.fengsel { background: rgba(200,48,48,0.2); color: #ff6060; border: 1px solid rgba(200,48,48,0.4); }
+  .tag.ok { background: rgba(40,160,96,0.15); color: var(--green); border: 1px solid rgba(40,160,96,0.3); }
+
+  /* Trip summary */
+  .trip-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  .trip-panel h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  .trip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 0.85rem;
+  }
+
+  .trip-row:last-child { border-bottom: none; }
+  .trip-row .tl { color: var(--muted); }
+  .trip-row .tv { font-weight: 600; color: var(--text); }
+  .trip-row .tv.red { color: var(--red); }
+  .trip-row .tv.yellow { color: var(--yellow); }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  button {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .btn-start {
+    background: var(--red);
+    color: white;
+  }
+
+  .btn-start:hover { background: #c02828; transform: translateY(-1px); }
+  .btn-start:active { transform: translateY(0); }
+
+  .btn-stop {
+    background: #1e1e1e;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-stop:hover { background: #252525; color: var(--text); }
+
+  .btn-reset {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+
+  /* Manual override */
+  .manual-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .manual-section h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .manual-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .manual-row label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .speed-input {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    width: 80px;
+    padding: 6px 10px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .speed-input:focus { border-color: var(--accent); }
+
+  select {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+    outline: none;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Disclaimer */
+  .disclaimer {
+    font-size: 0.7rem;
+    color: #444;
+    text-align: center;
+    line-height: 1.6;
+    padding: 0 8px;
+  }
+
+  /* Animations */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-in { animation: slideIn 0.3s ease; }
+
+  /* Max fine warning */
+  .max-warning {
+    background: linear-gradient(135deg, rgba(230,48,48,0.15), rgba(180,0,0,0.1));
+    border: 1px solid var(--red);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    display: none;
+  }
+
+  .max-warning.show { display: block; }
+  .max-warning strong { color: var(--red); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚨 Fartsbot-kalkulator</h1>
+  <p>Hva ville du betalt om du ble tatt?</p>
+</header>
+
+<div class="container">
+
+  <!-- Tillatelse-påminnelse -->
+  <div id="permReminder" style="display:none;background:#1a1200;border:1px solid #f0c040;border-radius:8px;padding:11px 14px;font-size:0.78rem;color:#f0c040;line-height:1.6;gap:8px;align-items:flex-start;">
+    <span style="font-size:1.1rem;flex-shrink:0">📍</span>
+    <span>Tillat stedstjenester når Safari spør. Velg <strong>«Tillat mens appen er i bruk»</strong> og aktiver <strong>«Nøyaktig posisjon»</strong> for beste resultat.</span>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Trykk «Start» for å begynne GPS-registrering</span>
+  </div>
+
+  <!-- Speed display -->
+  <div class="speed-block">
+    <div class="speed-label">Din hastighet (GPS)</div>
+    <div class="speed-number" id="speedDisplay">—</div>
+    <div class="speed-unit">km/t</div>
+  </div>
+
+  <!-- Limit + over -->
+  <div class="limit-row">
+    <div class="limit-box">
+      <div class="lbl">Fartsgrense</div>
+      <div class="val" id="limitDisplay">—</div>
+      <div class="unit">km/t</div>
+    </div>
+    <div class="over-box" id="overBox">
+      <div class="lbl">Over grensen</div>
+      <div class="val" id="overDisplay">—</div>
+      <div class="unit">km/t</div>
+    </div>
+  </div>
+
+  <!-- Bot panel -->
+  <div class="bot-panel" id="botPanel">
+    <div class="bot-header">Boten du ville fått</div>
+    <div class="bot-amount" id="botAmount">— kr</div>
+    <div class="bot-desc" id="botDesc">Vent på GPS-data og fartsgrense...</div>
+    <div class="tags" id="tags"></div>
+  </div>
+
+  <!-- Max warning -->
+  <div class="max-warning" id="maxWarning">
+    <strong>⚠️ ALVORLIG FARTSOVERSKRIDELSE</strong><br>
+    Over grensen for forenklet forelegg — dette kan gi <strong>betinget fengsel</strong>, 
+    <strong>tap av førerretten</strong> og saken behandles i retten.
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="btn-start" id="btnStart" onclick="startTracking()">▶ Start GPS</button>
+    <button class="btn-stop" id="btnStop" onclick="stopTracking()" style="display:none">⏹ Stopp</button>
+  </div>
+
+  <!-- Trip summary -->
+  <div class="trip-panel">
+    <h2>📊 Tur-sammendrag</h2>
+    <div class="trip-row"><span class="tl">Maks hastighet registrert</span><span class="tv" id="tripMax">—</span></div>
+    <div class="trip-row"><span class="tl">Maks over fartsgrense</span><span class="tv red" id="tripMaxOver">—</span></div>
+    <div class="trip-row"><span class="tl">Høyeste mulige bot</span><span class="tv red" id="tripMaxFine">—</span></div>
+    <div class="trip-row"><span class="tl">Tid over fartsgrense</span><span class="tv yellow" id="tripTimeOver">—</span></div>
+    <div class="trip-row"><span class="tl">Prikker på lappen</span><span class="tv yellow" id="tripPrikker">—</span></div>
+    <button class="btn-reset" onclick="resetTrip()" style="margin-top:12px;width:100%">Nullstill tur</button>
+  </div>
+
+  <!-- Manual override -->
+  <div class="manual-section">
+    <h3>🔧 Test manuelt (ingen GPS)</h3>
+    <div class="manual-row">
+      <label>Fart:</label>
+      <input class="speed-input" type="number" id="manualSpeed" placeholder="80" min="0" max="250" oninput="manualCalc()">
+      <label>Grense:</label>
+      <select id="manualLimit" onchange="manualCalc()">
+        <option value="">Velg</option>
+        <option value="30">30 km/t</option>
+        <option value="40">40 km/t</option>
+        <option value="50">50 km/t</option>
+        <option value="60">60 km/t</option>
+        <option value="70">70 km/t</option>
+        <option value="80">80 km/t</option>
+        <option value="90">90 km/t</option>
+        <option value="100">100 km/t</option>
+        <option value="110">110 km/t</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    Satser per 15. feb. 2026 (Lovdata). Kun fartsbot-del av forenklet forelegg.
+    GPS-nøyaktighet varierer. Kun til underholdning – ikke juridisk rådgivning.
+    Fartsgrense hentes fra OpenStreetMap.
+  </div>
+
+</div>
+
+<script>
+// ===== BOT SATSER (Lovdata, gjeldende fra 15. feb 2026) =====
+// Sone ≤60 km/t
+const fineTable60 = [
+  { maxOver: 5,  fine: 1250 },
+  { maxOver: 10, fine: 3350 },
+  { maxOver: 15, fine: 5950 },
+  { maxOver: 20, fine: 8650 },
+  { maxOver: 25, fine: 13450 },
+  { maxOver: Infinity, fine: null } // tap av lappen
+];
+
+// Sone ≥70 km/t
+const fineTable70 = [
+  { maxOver: 5,  fine: 1250 },
+  { maxOver: 10, fine: 3350 },
+  { maxOver: 15, fine: 5350 },
+  { maxOver: 20, fine: 7650 },
+  { maxOver: 25, fine: 10150 },
+  { maxOver: 30, fine: 13450 },
+  { maxOver: 36, fine: 15850 },
+  { maxOver: Infinity, fine: null }
+];
+
+function calculateFine(speed, limit) {
+  if (!speed || !limit || speed <= limit) return { fine: 0, over: 0, class: 'no-fine', desc: 'Innenfor fartsgrensen — ingen bot.', tags: ['ok'], lostLicense: false };
+
+  const over = Math.round(speed - limit);
+  const table = limit <= 60 ? fineTable60 : fineTable70;
+
+  let fineEntry = table.find(e => over <= e.maxOver);
+  let fine = fineEntry ? fineEntry.fine : null;
+
+  // Prikker
+  let prikker = 0;
+  if (limit <= 60 && over > 10) prikker = over > 20 ? 3 : 2;
+  if (limit >= 70 && over > 15) prikker = over > 25 ? 3 : 2;
+
+  // Tap av lappen
+  let lostLicense = false;
+  if (limit <= 30 && over >= 26) lostLicense = true;
+  else if (limit <= 40 && over >= 31) lostLicense = true;
+  else if (limit <= 50 && over >= 31) lostLicense = true;
+  else if (limit <= 60 && over >= 41) lostLicense = true;
+  else if (limit >= 70 && over >= 37) lostLicense = true;
+
+  // Fengsel
+  let prison = false;
+  if (limit === 50 && speed >= 96) prison = true;
+  if (limit === 60 && speed >= 115) prison = true;
+  if (limit === 70 && speed >= 125) prison = true;
+  if (limit === 80 && speed >= 136) prison = true;
+  if (limit === 90 && speed >= 150) prison = true;
+  if (limit === 100 && speed >= 165) prison = true;
+
+  let cls, desc;
+  if (!fine) {
+    cls = 'fine-severe';
+    desc = `<strong>${over} km/t over grensen</strong> — utenfor forenklet forelegg. Saken behandles i retten. Tap av førerretten er svært sannsynlig.`;
+  } else if (fine >= 10000) {
+    cls = 'fine-severe';
+    desc = `<strong>${over} km/t over ${limit}-grensen</strong> — meget alvorlig overtredelse.`;
+  } else if (fine >= 5000) {
+    cls = 'fine-high';
+    desc = `<strong>${over} km/t over ${limit}-grensen</strong> — alvorlig overtredelse med høy bot.`;
+  } else if (fine >= 2000) {
+    cls = 'fine-low';
+    desc = `<strong>${over} km/t over ${limit}-grensen</strong> — merkbar overskridelse.`;
+  } else {
+    cls = 'fine-low';
+    desc = `<strong>${over} km/t over ${limit}-grensen</strong> — lav, men merkbar overskridelse.`;
+  }
+
+  const tags = [];
+  if (prikker > 0) tags.push({ type: 'prikker', label: `${prikker} prikk${prikker > 1 ? 'er' : ''} på lappen` });
+  if (lostLicense) tags.push({ type: 'lappen', label: '⚠ Risiko: miste lappen' });
+  if (prison) tags.push({ type: 'fengsel', label: '🔒 Risiko: fengsel' });
+  if (!fine && !lostLicense) tags.push({ type: 'lappen', label: '⚠ Tap av førerretten' });
+
+  return { fine, over, class: cls, desc, tags, lostLicense, prikker, prison };
+}
+
+// ===== GPS & OVERPASS =====
+let watchId = null;
+let isTracking = false;
+let lastLat = null, lastLon = null;
+let currentLimit = null;
+let limitFetchTimer = null;
+let isManualMode = false;
+
+// Trip stats
+let tripMaxSpeed = 0;
+let tripMaxOver = 0;
+let tripMaxFine = 0;
+let tripSecondsOver = 0;
+let tripPrikker = 0;
+let tripInterval = null;
+
+function startTracking() {
+  if (!navigator.geolocation) {
+    setStatus('error', 'GPS ikke tilgjengelig i denne nettleseren.');
+    return;
+  }
+  isManualMode = false;
+  isTracking = true;
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnStop').style.display = 'flex';
+  setStatus('searching', 'Venter på GPS-signal...');
+  // Vis påminnelse om tillatelser
+  document.getElementById('permReminder').style.display = 'flex';
+
+  watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+    enableHighAccuracy: true,
+    maximumAge: 1000,
+    timeout: 10000
+  });
+
+  tripInterval = setInterval(() => {
+    const over = getOverNow();
+    if (over > 0) {
+      tripSecondsOver++;
+      updateTripSummary();
+    }
+  }, 1000);
+}
+
+function stopTracking() {
+  if (watchId) navigator.geolocation.clearWatch(watchId);
+  clearInterval(tripInterval);
+  isTracking = false;
+  document.getElementById('btnStart').style.display = 'flex';
+  document.getElementById('btnStop').style.display = 'none';
+  setStatus('', 'GPS stoppet. Se tur-sammendrag nedenfor.');
+}
+
+let _overNow = 0;
+function getOverNow() { return _overNow; }
+
+function onPosition(pos) {
+  document.getElementById('permReminder').style.display = 'none';
+  const speed = pos.coords.speed != null ? Math.round(pos.coords.speed * 3.6) : null;
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+
+  setStatus('active', `GPS aktiv · nøyaktighet ±${Math.round(pos.coords.accuracy)}m`);
+
+  if (speed !== null) {
+    document.getElementById('speedDisplay').textContent = speed;
+    // Update trip max speed
+    if (speed > tripMaxSpeed) {
+      tripMaxSpeed = speed;
+    }
+  }
+
+  // Fetch limit if moved enough
+  if (lastLat === null || dist(lat, lon, lastLat, lastLon) > 30) {
+    lastLat = lat; lastLon = lon;
+    setStatus('searching', `GPS aktiv · henter fartsgrense...`);
+    fetchSpeedLimit(lat, lon).finally(() => {
+      setStatus('active', `GPS aktiv · nøyaktighet ±${Math.round(pos.coords.accuracy)}m`);
+    });
+  }
+
+  if (currentLimit && speed !== null) {
+    updateFineDisplay(speed, currentLimit);
+  }
+}
+
+function onError(err) {
+  setStatus('error', 'GPS-feil: ' + err.message);
+}
+
+function dist(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Overpass endpoints – vestlig-hostet, prøves i rekkefuølge
+// GET-forespørsler unngår preflight CORS-problem
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kty.one/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
+
+async function fetchSpeedLimit(lat, lon) {
+  const query = `[out:json][timeout:6];(way(around:50,${lat},${lon})[highway][maxspeed];way(around:50,${lat},${lon})[highway];);out tags 3;`;
+  const mkUrl = (base) => base + '?data=' + encodeURIComponent(query);
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(mkUrl(endpoint), { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.elements && data.elements.length > 0) {
+        const withSpeed = data.elements.find(e => e.tags && e.tags.maxspeed);
+        if (withSpeed) {
+          const parsed = parseInt(withSpeed.tags.maxspeed);
+          if (!isNaN(parsed)) {
+            currentLimit = parsed;
+            document.getElementById('limitDisplay').textContent = parsed;
+            return;
+          }
+        }
+        const anyRoad = data.elements.find(e => e.tags && e.tags.highway);
+        if (anyRoad) {
+          const inferred = inferFromHighway(anyRoad.tags.highway);
+          if (inferred) {
+            currentLimit = inferred;
+            document.getElementById('limitDisplay').textContent = inferred + '*';
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  await fetchLimitFromNominatim(lat, lon);
+}
+
+function inferFromHighway(hw) {
+  if (!hw) return null;
+  if (hw === 'motorway') return 110;
+  if (hw === 'motorway_link') return 80;
+  if (hw === 'trunk') return 90;
+  if (hw === 'trunk_link') return 70;
+  if (hw === 'primary' || hw === 'secondary') return 80;
+  if (hw === 'tertiary' || hw === 'unclassified') return 80;
+  if (hw === 'residential') return 30;
+  if (hw === 'living_street') return 10;
+  if (hw === 'service') return 30;
+  return 50; // urban default
+}
+
+async function fetchLimitFromNominatim(lat, lon) {
+  // Use Nominatim to at least get road context for Norwegian defaults
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=17`, {
+      headers: { 'Accept-Language': 'no', 'User-Agent': 'FartsbotApp/1.0' },
+      signal: (typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(5000) : undefined)
+    });
+    const data = await res.json();
+    const road = data.address;
+    // Guess from road type in address
+    let guess = 50;
+    if (road.motorway) guess = 110;
+    else if (road.trunk) guess = 90;
+    else if (road.primary) guess = 80;
+    else if (road.secondary || road.road) guess = 80;
+    else if (road.residential || road.suburb) guess = 30;
+
+    if (!currentLimit) {
+      currentLimit = guess;
+      document.getElementById('limitDisplay').textContent = guess + '*';
+    }
+  } catch(e) {
+    // Give up silently
+  }
+}
+
+function updateFineDisplay(speed, limit) {
+  const result = calculateFine(speed, limit);
+  _overNow = result.over;
+
+  // Update trip stats
+  if (result.over > tripMaxOver) {
+    tripMaxOver = result.over;
+  }
+  if (result.fine && result.fine > tripMaxFine) {
+    tripMaxFine = result.fine;
+  }
+  if (result.prikker > tripPrikker) tripPrikker = result.prikker;
+
+  // Speed color
+  const speedEl = document.getElementById('speedDisplay');
+  speedEl.style.color = result.over > 20 ? '#e63030' : result.over > 10 ? '#f07030' : result.over > 0 ? '#f0c040' : '#f0f0f0';
+
+  // Over box
+  const overBox = document.getElementById('overBox');
+  const overDisplay = document.getElementById('overDisplay');
+  if (result.over > 0) {
+    overDisplay.textContent = '+' + result.over;
+    overBox.className = 'over-box ' + (result.over > 15 ? 'danger' : 'warn');
+  } else {
+    overDisplay.textContent = '0';
+    overBox.className = 'over-box';
+  }
+
+  // Bot panel
+  const botPanel = document.getElementById('botPanel');
+  const botAmount = document.getElementById('botAmount');
+  const botDesc = document.getElementById('botDesc');
+  const tagsEl = document.getElementById('tags');
+
+  botPanel.className = 'bot-panel animate-in ' + result.class;
+  botAmount.className = 'bot-amount ' + result.class;
+  botAmount.textContent = result.fine === null ? '15 850+ kr' : result.fine === 0 ? '0 kr' : result.fine.toLocaleString('no-NO') + ' kr';
+  botDesc.innerHTML = result.desc;
+
+  tagsEl.innerHTML = result.tags.map(t => {
+    if (t === 'ok') return `<span class="tag ok">✓ Ingen bot</span>`;
+    return `<span class="tag ${t.type}">${t.label}</span>`;
+  }).join('');
+
+  // Max warning
+  const warn = document.getElementById('maxWarning');
+  warn.className = 'max-warning' + (result.fine === null ? ' show' : '');
+
+  updateTripSummary();
+}
+
+function updateTripSummary() {
+  document.getElementById('tripMax').textContent = tripMaxSpeed > 0 ? tripMaxSpeed + ' km/t' : '—';
+  document.getElementById('tripMaxOver').textContent = tripMaxOver > 0 ? '+' + tripMaxOver + ' km/t' : '—';
+
+  const fineText = tripMaxFine > 0 ? tripMaxFine.toLocaleString('no-NO') + ' kr' : (tripMaxOver > 0 ? '15 850+ kr' : '—');
+  document.getElementById('tripMaxFine').textContent = fineText;
+
+  const mins = Math.floor(tripSecondsOver / 60);
+  const secs = tripSecondsOver % 60;
+  document.getElementById('tripTimeOver').textContent = tripSecondsOver > 0 ? (mins > 0 ? `${mins}m ${secs}s` : `${secs}s`) : '0s';
+  document.getElementById('tripPrikker').textContent = tripPrikker > 0 ? tripPrikker + ' prikker' : '—';
+}
+
+function resetTrip() {
+  tripMaxSpeed = 0; tripMaxOver = 0; tripMaxFine = 0; tripSecondsOver = 0; tripPrikker = 0;
+  updateTripSummary();
+}
+
+// Manual mode
+function manualCalc() {
+  const speed = parseInt(document.getElementById('manualSpeed').value);
+  const limit = parseInt(document.getElementById('manualLimit').value);
+  if (isNaN(speed) || isNaN(limit)) return;
+
+  isManualMode = true;
+  document.getElementById('speedDisplay').textContent = speed;
+  document.getElementById('limitDisplay').textContent = limit;
+  updateFineDisplay(speed, limit);
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + type;
+  txt.textContent = text;
+}
+</script>
+</body>
+</html>
